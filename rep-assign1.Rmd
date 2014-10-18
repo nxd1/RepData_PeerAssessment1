@@ -1,0 +1,72 @@
+---
+title: "Reproducible Research - Peer Assignment 1"
+
+author: "ND"
+date: "Friday, October 17, 2014"
+output: html_document
+---
+This assignment requires to write a report that answers the questions detailed below. The entire assignment is to be completed in a **single R markdown** document that can be processed by **knitr** and transformed into an HTML file.
+
+### PART 1
+#### Loading and preprocessing the data
+```{r, echo=FALSE, results="hide"}
+require(data.table)
+require(ggplot2)
+require(knitr)
+```
+
+```{r}
+# 1. Load the data from current working directory
+unzip("activity.zip", overwrite = T, exdir = ".")
+
+df <- read.csv("activity.csv", header=T, colClasses=c("numeric", "character", "numeric"))
+
+#2. Make data table to process/transform the dataset
+dt <- data.table(df)
+
+# Calculate sum and mean for steps per day (ignore missing values)
+d.steps <- dt[, list(sum=sum(steps, na.rm=T), mean=mean(steps, na.rm=T)), by=list(date)]
+```
+
+### PART 2
+#### 1. Histogram of the total number of steps taken each day
+```{r, echo=FALSE}
+hist(d.steps$sum, breaks=c(10), freq=T, density=30, col="blue",
+     main="", xlab="Steps", xlim=c(0, 25000), ylim=c(0,20))
+```
+
+```{r calcvals, echo=FALSE}
+v.mean <- sprintf("%0.2f", mean(d.steps$sum, na.rm=T))
+v.median <- sprintf("%d", median(d.steps$sum, na.rm=T))
+```
+#### 2. The mean number of steps per day is `r v.mean` and the median is `r v.median`.
+
+###
+### PART 3 - Daily Activity Pattern
+#### 1. Time series plot of the 5-minute interval and average number of steps across all days
+```{r timeplot, echo=FALSE}
+i.steps <- dt[, list(mean=mean(steps, na.rm=T)), by=list(interval)]
+max.idx <- which.max(i.steps$mean)
+m.max <- sprintf("%.4f", i.steps[max.idx, mean])
+plot(mean ~ interval, i.steps, type="l")
+```
+
+#### 2. Which 5-minute interval, on average across all the days, contains the maximum number of steps?
+- Interval `r i.steps[max.idx, interval]`, which contains `r m.max` average steps
+
+### PART 4 - Missing Values
+```{r nas, echo=FALSE}
+na.count <- sum(complete.cases(dt) == FALSE)
+ok.count <- sum(complete.cases(dt) == TRUE)
+```
+####1. Total number of missing values in the dataset (i.e. rows with `NA`s): `r na.count`
+- Total OK count: `r ok.count` (out of `r na.count + ok.count`)
+
+####2. Fill in missing values with the mean for that day
+```{r fill}
+dt.filled <- dt[is.na(steps), ]
+```
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
