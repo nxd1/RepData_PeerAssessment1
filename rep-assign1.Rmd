@@ -1,72 +1,124 @@
 ---
 title: "Reproducible Research - Peer Assignment 1"
-
-author: "ND"
-date: "Friday, October 17, 2014"
 output: html_document
 ---
 This assignment requires to write a report that answers the questions detailed below. The entire assignment is to be completed in a **single R markdown** document that can be processed by **knitr** and transformed into an HTML file.
 
 ### PART 1
-#### Loading and preprocessing the data
+####1. Loading and preprocessing the data
 ```{r, echo=FALSE, results="hide"}
-require(data.table)
-require(ggplot2)
-require(knitr)
+library(data.table)
+library(ggplot2)
+library(knitr)
+library(plyr)
 ```
 
 ```{r}
-# 1. Load the data from current working directory
+# 1. Unzip and read the data file from current working directory
 unzip("activity.zip", overwrite = T, exdir = ".")
-
 df <- read.csv("activity.csv", header=T, colClasses=c("numeric", "character", "numeric"))
+df$date <- as.Date(df$date, format="%Y-%m-%d")
 
 #2. Make data table to process/transform the dataset
-dt <- data.table(df)
+dt <- data.table(df, key="date")
 
-# Calculate sum and mean for steps per day (ignore missing values)
-d.steps <- dt[, list(sum=sum(steps, na.rm=T), mean=mean(steps, na.rm=T)), by=list(date)]
+# Calculate sum and mean for steps per day, ignoring missing values
+d.steps <- dt[, list(d.sum=sum(steps, na.rm=T), d.mean=mean(steps, na.rm=T)), by=list(date)]
 ```
 
 ### PART 2
 #### 1. Histogram of the total number of steps taken each day
 ```{r, echo=FALSE}
-hist(d.steps$sum, breaks=c(10), freq=T, density=30, col="blue",
+hist(d.steps$d.sum, breaks=10, freq=T, density=30, col="blue", border="grey",
      main="", xlab="Steps", xlim=c(0, 25000), ylim=c(0,20))
 ```
 
 ```{r calcvals, echo=FALSE}
-v.mean <- sprintf("%0.2f", mean(d.steps$sum, na.rm=T))
-v.median <- sprintf("%d", median(d.steps$sum, na.rm=T))
+mean.orig <- mean(d.steps$d.sum, na.rm=T)
+median.orig <- median(d.steps$d.sum, na.rm=T)  ## SHOULD THIS BE MEDIAN OF STEPS???
 ```
-#### 2. The mean number of steps per day is `r v.mean` and the median is `r v.median`.
+#### 2. Calculare **mean** & **median** number of steps per day:
+- mean = `r sprintf("%0.2f", mean.orig)`
+- median = `r sprintf("%.2f", median.orig)`
 
 ###
 ### PART 3 - Daily Activity Pattern
 #### 1. Time series plot of the 5-minute interval and average number of steps across all days
 ```{r timeplot, echo=FALSE}
-i.steps <- dt[, list(mean=mean(steps, na.rm=T)), by=list(interval)]
-max.idx <- which.max(i.steps$mean)
-m.max <- sprintf("%.4f", i.steps[max.idx, mean])
-plot(mean ~ interval, i.steps, type="l")
+i.steps <- dt[, list(i.mean=mean(steps, na.rm=T)), by=list(interval)]
+max.idx <- which.max(i.steps$i.mean)
+m.max <- i.steps[max.idx, i.mean]
+plot(i.mean ~ interval, i.steps, type="l", xlab="Interval", ylab="Avg. Number of Steps")
 ```
 
 #### 2. Which 5-minute interval, on average across all the days, contains the maximum number of steps?
-- Interval `r i.steps[max.idx, interval]`, which contains `r m.max` average steps
+- Interval `r i.steps[max.idx, interval]` contains the maximun number of steps (`r sprintf("%.2f", m.max)`)
 
 ### PART 4 - Missing Values
 ```{r nas, echo=FALSE}
 na.count <- sum(complete.cases(dt) == FALSE)
 ok.count <- sum(complete.cases(dt) == TRUE)
 ```
-####1. Total number of missing values in the dataset (i.e. rows with `NA`s): `r na.count`
-- Total OK count: `r ok.count` (out of `r na.count + ok.count`)
+####1. Total number of missing values in the dataset (i.e. rows with `NA`s): 
+- Missing count is `r na.count`
+- OK count is `r ok.count` (`r na.count + ok.count` total observations)
 
-####2. Fill in missing values with the mean for that day
-```{r fill}
-dt.filled <- dt[is.na(steps), ]
+####2. Fill in missing values
+- Missing values filled in with the mean # of steps for the corresponding interval
+
+####3. Create a new dataset equal to the original, but with the missing data filled in.
+
+```{r}
+# Merge dataset of computed interval averages with original data, joining by the interval
+dt2 <- merge(dt, i.steps, by="interval")
+
+# Create a new column containing either: a) the mean # of steps for the interval, when steps
+# are missing; otherwise, b) the original number of steps for the interval
+dt2 <- dt2[, fill:={ifelse(is.na(steps), i.mean, steps)}]
 ```
 
-3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+####4a. Make a histogram of the total number of steps taken each day
+```{r, echo=FALSE}
+# Calculate sum and mean for steps per day using values filled in for missing data
+d2.steps <- dt2[, list(d.sum=sum(fill), d.mean=mean(fill)), by=list(date)]
 
-4. Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+hist(d2.steps$d.sum,
+     breaks=c(10), freq=T, density=30, col="blue",
+     main="", xlab="Steps", xlim=c(0, 25000), ylim=c(0,20))
+```
+
+```{r calcvals-NA-rm, echo=FALSE}
+mean.est <- mean(d2.steps$d.sum)
+median.est <- median(d2.steps$d.sum)     ## SHOULD THIS BE MEDIAN OF STEPS???
+```
+####4b. New **mean** and **median** total number of steps taken per day.
+- mean = `r sprintf("%.2f", mean.est)`
+- median = `r sprintf("%.2f", median.est)`
+
+####4c. Do these values differ from the estimates from the first part of the assignment?
+```{r, echo=FALSE}
+mean.diff <- mean.est - mean.orig
+median.diff <- median.est - median.orig
+```
+- mean differs by `r sprintf("%.2f", mean.diff)` from original
+- median differs by `r sprintf("%.2f", median.diff)` from original
+
+####4d. What is the impact of imputing missing data on the estimates of the total daily number of steps?
+Imputing ...
+
+###PART 5 - Differences in activity patterns between weekdays and weekends
+
+1. Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+```{r}
+dt2$d.type <- ifelse(weekdays(dt2$date) %in% c("Saturday", "Sunday"), "weekend", "weekday")
+```
+
+2. Make a panel plot containing a time series of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r timeplot2, echo=FALSE}
+i2.steps <- dt2[, list(d.type.mean=mean(fill)), by=list(d.type, interval)]
+par(mfrow = c(2, 1))
+g <- ggplot(i2.steps, aes(interval, d.type.mean))
+g + geom_line() + facet_grid(. ~ d.type) + facet_wrap(~ d.type, nrow=2, ncol=1) +
+  xlab("Interval") + ylab("Avg Number of Steps")
+```
