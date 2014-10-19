@@ -8,7 +8,7 @@ output:
 This assignment requires to write a report that answers the questions detailed below. The entire assignment is to be completed in a **single R markdown** document that can be processed by **knitr** and transformed into an HTML file.
 
 ### PART 1: Loading and preprocessing the data
-```{r, echo=FALSE, results="hide"}
+```{r, results="hide"}
 library(data.table)
 library(ggplot2)
 library(knitr)
@@ -33,7 +33,7 @@ d.steps <- dt[, list(d.sum=sum(steps, na.rm=T), d.mean=mean(steps, na.rm=T)), by
 ### PART 2: What is mean total number of steps taken per day?
 - Histogram of steps taken per day  
 
-```{r, echo=FALSE}
+```{r}
 hist(d.steps$d.sum, breaks=10, freq=T, density=30, col="blue", border="grey",
      main="", xlab="Steps", xlim=c(0, 25000), ylim=c(0,20))
 mean.orig <- mean(d.steps$d.sum, na.rm=T)
@@ -45,7 +45,7 @@ median.orig <- median(d.steps$d.sum, na.rm=T)
 ### PART 3: What is the average daily activity pattern?
 - Plot of the 5-minute interval and average number of steps across all days:  
 
-```{r timeplot, echo=FALSE}
+```{r timeplot}
 i.steps <- dt[, list(i.mean=mean(steps, na.rm=T)), by=list(interval)]
 max.idx <- which.max(i.steps$i.mean)
 m.max <- i.steps[max.idx, i.mean]
@@ -55,28 +55,27 @@ plot(i.mean ~ interval, i.steps, type="l", xlab="Interval", ylab="Avg. Number of
 - Interval **`r i.steps[max.idx, interval]`** contains the maximun avg. number of steps of `r sprintf("%.2f", m.max)`
 
 ### PART 4: Imputing Missing Values
-```{r nas, echo=FALSE}
+```{r nas}
+# Count complete cases (no NA's)
 na.count <- sum(complete.cases(dt) == FALSE)
 ok.count <- sum(complete.cases(dt) == TRUE)
+
+# Merge dataset of computed interval averages with original data, joining by the interval
+dt2 <- merge(dt, i.steps, by="interval")
+
+# Create new dataset with the missing data filled in:
+# Add new column containing either: a) the mean # of steps for the interval, when steps
+# are missing; otherwise, b) the original number of steps for the interval
+dt2 <- dt2[, fill:={ifelse(is.na(steps), i.mean, steps)}]
 ```
 - Total number of missing values in the dataset (i.e. rows with `NA`s): `r na.count`
 
     - `r ok.count` good counts / `r na.count + ok.count` total observations
 
 - Filled in missing values with the mean number of steps for the interval
-- Created new dataset with the missing data filled in:
-
-```{r}
-# Merge dataset of computed interval averages with original data, joining by the interval
-dt2 <- merge(dt, i.steps, by="interval")
-
-# Create a new column containing either: a) the mean # of steps for the interval, when steps
-# are missing; otherwise, b) the original number of steps for the interval
-dt2 <- dt2[, fill:={ifelse(is.na(steps), i.mean, steps)}]
-```
 - Histogram of the estimated total number of steps taken each day
   
-```{r, echo=FALSE}
+```{r}
 # Calculate sum and mean for steps per day using values filled in for missing data
 d2.steps <- dt2[, list(d.sum=sum(fill), d.mean=mean(fill)), by=list(date)]
 
@@ -112,7 +111,7 @@ dt2$d.type <- ifelse(weekdays(dt2$date) %in% c("Saturday", "Sunday"), "weekend",
 
 - Make a panel plot containing a time series of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
 
-```{r timeplot2, echo=FALSE}
+```{r timeplot2}
 i2.steps <- dt2[, list(d.type.mean=mean(fill)), by=list(d.type, interval)]
 par(mfrow = c(2, 1))
 g <- ggplot(i2.steps, aes(interval, d.type.mean))
