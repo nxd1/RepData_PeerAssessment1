@@ -255,7 +255,9 @@ median.orig &lt;- median(d.steps$d.sum, na.rm=T)
 
 <pre><code class="r">i.steps &lt;- dt[, list(i.mean=mean(steps, na.rm=T)), by=list(interval)]
 max.idx &lt;- which.max(i.steps$i.mean)
+interval &lt;- i.steps[max.idx, interval]
 m.max &lt;- i.steps[max.idx, i.mean]
+
 plot(i.mean ~ interval, i.steps, type=&quot;l&quot;, xlab=&quot;Interval&quot;, ylab=&quot;Avg. Number of Steps&quot;)
 </code></pre>
 

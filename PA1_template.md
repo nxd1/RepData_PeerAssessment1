@@ -57,7 +57,9 @@ median.orig <- median(d.steps$d.sum, na.rm=T)
 ```r
 i.steps <- dt[, list(i.mean=mean(steps, na.rm=T)), by=list(interval)]
 max.idx <- which.max(i.steps$i.mean)
+interval <- i.steps[max.idx, interval]
 m.max <- i.steps[max.idx, i.mean]
+
 plot(i.mean ~ interval, i.steps, type="l", xlab="Interval", ylab="Avg. Number of Steps")
 ```
 
